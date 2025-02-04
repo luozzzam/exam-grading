@@ -10,6 +10,10 @@ struct Tensor4D {
     Tensor4D(unsigned int const shape_[4], T const *data_) {
         unsigned int size = 1;
         // TODO: 填入正确的 shape 并计算 size
+        for (int i = 0; i < 4; i++) {
+            shape[i] = shape_[i];
+            size *= shape[i];
+        }
         data = new T[size];
         std::memcpy(data, data_, size * sizeof(T));
     }
@@ -28,6 +32,32 @@ struct Tensor4D {
     // 则 `this` 与 `others` 相加时，3 个形状为 `[1, 2, 1, 4]` 的子张量各自与 `others` 对应项相加。
     Tensor4D &operator+=(Tensor4D const &others) {
         // TODO: 实现单向广播的加法
+        for (int i = 0; i < 4; i++) {
+            if (others.shape[i] != 1 && this->shape[i] != others.shape[i]) {
+                throw std::invalid_argument("Shapes are not compatible for broadcasting");
+            }
+        }
+        unsigned int size = shape[0] * shape[1] * shape[2] * shape[3];
+
+        // 依次遍历每个元素，计算每个元素对应的广播索引
+        for (unsigned int idx = 0; idx < size; ++idx) {
+            unsigned int linearIdx = idx; 
+            unsigned int broadcastIdx = 0; 
+            unsigned int stride = 1; 
+
+            // 从最后一个维度开始比较，向前检查每个维度
+            for (int dim = 3; dim >= 0; --dim) {
+                unsigned int thisIdx = linearIdx % shape[dim]; // 当前维度的索引
+                linearIdx /= shape[dim];
+
+                if (others.shape[dim] != 1) { // 不是广播维度
+                    broadcastIdx += thisIdx * stride;
+                }
+                stride *= others.shape[dim];
+            }
+            data[idx] += others.data[broadcastIdx];
+        }
+        
         return *this;
     }
 };
